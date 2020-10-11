@@ -6,3 +6,5 @@ The recommender systems built are:
 - user based
 - item based
 - matrix factorization (with L2 regularization)
+
+Also contains some data wrangling techniques
