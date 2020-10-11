@@ -106,3 +106,68 @@ user_based_rec("222", user.similarities, viewed.movies)
 
 # apply to all users using lapply
 lapply(sorted_my_user, user_based_rec, user.similarities, viewed.movies)
+
+#### recommender system using item-based collaborative filtering ####
+
+# compute which movies are similar to each other (same as before using the cosine similarity method)
+movies.user <- t(viewed.movies)
+
+# finding similarities between each movie pair
+movie.similarities <- matrix(0, nrow = 20, ncol = 20)
+for(i in 1:19){
+  for(j in (i + 1):20){
+    movie.similarities[i,j] <- cosine.sim(movies.user[i,], movies.user[j,])
+  }
+}
+
+movie.similarities <- movie.similarities + t(movie.similarities)
+diag(movie.similarities) <- 0
+row.names(movie.similarities) <- colnames(viewed.movies)
+colnames(movie.similarities) <- colnames(viewed.movies)
+
+# checking which movies are most similar to apocolypse now
+sort(movie.similarities[,"Apocalypse Now (1979)"], decreasing = T)
+
+# recommend a movie for a single user
+ratings.red %>%
+  filter(userId == 372) %>%
+  select(userId, title) # shows movies watched by user 372
+
+# finding similarities between the movies watched by 372 and other movies
+# sum up the similarities to get the similarity score.
+# most similar is best to recommend
+user.seen <- ratings.red %>%
+  filter(userId == 372) %>%
+  select(title) %>%
+  unlist() %>%
+  as.character() # obtaining movies seen by user 372
+
+sort(movie.similarities[,user.seen[1]], decreasing = T) # checking most similar to first of the movies of 372
+
+# getting similarity score for 372
+sort(apply(movie.similarities[,user.seen], 1, sum), decreasing = T)
+
+# putting it in a function
+item_based_rec <- function(user, movie.sim, viewed.mov){
+  
+  user <- ifelse(is.character(user), user, as.character(user))
+  
+  # get scores
+  user_seen <- row.names(movie.sim)[viewed.mov[user,] == T] #getting seen movies
+  user.scores <- tibble(title = row.names(movie.sim),
+                        score = apply(movie.sim[,user_seen], 1, sum),
+                        seen = viewed.mov[user,])
+  
+  # sort unseen movies by score and remove the seen
+  user.scores %>%
+    filter(seen == 0) %>%
+    arrange(desc(score)) %>%
+    select(-seen)
+}
+
+# testing with user 222
+item_based_rec("222", movie.similarities, viewed.movies)
+
+# for all users
+lapply(sorted_my_user, item_based_rec, movie.similarities, viewed.movies)
+
